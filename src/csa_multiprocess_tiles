@@ -1,0 +1,30 @@
+# Run cross-spectral analysis across tropics by iterating over tiles of 30deg longitude.
+
+cd /users/global/bethar/python/cross-spectral-veg-precip/src
+for lon_west in {-180..150..30}
+do
+python csagan_multiprocess.py tropics JJA $lon_west $((lon_west+30)) -35 35 2>&1 | tee tropics_MAM_noswmask.txt;
+python csagan_multiprocess.py northern JJA $lon_west $((lon_west+30)) 25 65 2>&1 | tee northern_JJA_noswmask.txt;
+python csagan_multiprocess.py southern JJA $lon_west $((lon_west+30)) -60 -25 2>&1 | tee southern_JJA_noswmask.txt;
+done
+
+#for lon_west in {-180..150..30}
+#do
+#python csagan_multiprocess.py tropics MAM $lon_west $((lon_west+30)) -35 35 2>&1 | tee tropics_MAM_noswmask.txt;
+#python csagan_multiprocess.py northern MAM $lon_west $((lon_west+30)) 25 65 2>&1 | tee northern_MAM_noswmask.txt;
+#python csagan_multiprocess.py southern MAM $lon_west $((lon_west+30)) -60 -25 2>&1 | tee southern_MAM_noswmask.txt;
+#done
+
+#for lon_west in {-180..150..30}
+#do
+#python csagan_multiprocess.py tropics SON $lon_west $((lon_west+30)) -35 35 2>&1 | tee tropics_SON_noswmask.txt;
+#python csagan_multiprocess.py northern SON $lon_west $((lon_west+30)) 25 65 2>&1 | tee northern_SON_noswmask.txt;
+#python csagan_multiprocess.py southern SON $lon_west $((lon_west+30)) -60 -25 2>&1 | tee southern_SON_noswmask.txt;
+#done
+
+#for lon_west in {-180..150..30}
+#do
+#python csagan_multiprocess.py tropics DJF $lon_west $((lon_west+30)) -35 35 2>&1 | tee tropics_DJF_noswmask.txt;
+#python csagan_multiprocess.py northern DJF $lon_west $((lon_west+30)) 25 65 2>&1 | tee northern_DJF_noswmask.txt;
+#python csagan_multiprocess.py southern DJF $lon_west $((lon_west+30)) -60 -25 2>&1 | tee southern_DJF_noswmask.txt;
+#done
