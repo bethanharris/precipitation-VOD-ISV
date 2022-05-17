@@ -4,8 +4,6 @@ a specified period band, testing for significance based on the large-scale neigh
 Proceed to compute the average period at which significant coherency occurs, the average phase difference
 and the width of the 95% confidence interval for the phase difference.
 
-Also contains functions to plot maps of these variables (not included in paper).
-
 Bethan Harris, UKCEH, 18/11/2020
 """
 
@@ -30,7 +28,6 @@ from lag_by_land_cover import *
 ##### Edit variables in this section to desired values before running script #####
 reference_variable_name = 'IMERG'
 response_variable_name = 'VOD_X' # For plot titles/filenames
-force_lag = False # e.g. for IMERG/VOD
 tile = 'tropics'
 season = 'DJF'
 # Path to cross-spectral analysis output (as saved from csagan_multiprocessing.py)
@@ -218,4 +215,3 @@ def run_neighbourhood_averaging():
 if __name__ == '__main__':
     neighbourhood_averages = run_neighbourhood_averaging()
     pickle.dump(neighbourhood_averages, open(f'{spectra_save_dir}/spectra_nooverlap_{tile}_IMERG_VOD_X_{season}_sw_filter_best85_{int(band_days_lower)}-{int(band_days_upper)}.p', 'wb'))
-
