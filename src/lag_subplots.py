@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.ticker as mticker
 from tqdm import tqdm
+import os
 from read_csagan_saved_output import read_region_data
 
 
@@ -34,7 +35,6 @@ def tile_global_validity(spectra_save_dir, season):
     tropics_filename = f"{spectra_save_dir}/tropics_IMERG_VOD_spectra_X_{season}_mask_sw_best85.p"
     northern_filename = f"{spectra_save_dir}/northern_IMERG_VOD_spectra_X_{season}_mask_sw_best85.p"
     southern_filename = f"{spectra_save_dir}/southern_IMERG_VOD_spectra_X_{season}_mask_sw_best85.p"
-    polar_filename = f"{spectra_save_dir}/polar_IMERG_VOD_spectra_X_{season}_mask_sw_best85.p"
     _, _, spectra_tropics = read_region_data(tropics_filename, 'tropics', -180, 180, -30, 30)
     _, _, spectra_northern = read_region_data(northern_filename, 'northern', -180, 180, 30, 55)
     _, _, spectra_southern = read_region_data(southern_filename, 'southern', -180, 180, -55, -30)
@@ -45,7 +45,8 @@ def tile_global_validity(spectra_save_dir, season):
     return no_csa_global
 
 
-def save_lags_to_file():
+def save_lags_to_file(spectra_save_dir):
+    os.system('mkdir -p ../data/lag_subplots_data')
     seasons = np.repeat(['MAM', 'JJA', 'SON', 'DJF'], 2)
     band_days_lower = [25, 40]*4
     band_days_upper = [40, 60]*4
@@ -53,18 +54,18 @@ def save_lags_to_file():
         season = seasons[i]
         lower = band_days_lower[i]
         upper = band_days_upper[i]
-        lag_dict = tile_global_from_saved_spectra(season, lower, upper)
+        lag_dict = tile_global_from_saved_spectra(spectra_save_dir, season, lower, upper)
         lag = lag_dict['lag']
         period = lag_dict['period']
         lag_error = lag_dict['lag_error']
-        no_csa = tile_global_validity(season, lower, upper)
+        no_csa = tile_global_validity(spectra_save_dir, season)
         np.save(f'../data/lag_subplots_data/lag_{season}_{lower}-{upper}.npy', lag)
         np.save(f'../data/lag_subplots_data/lag_error_{season}_{lower}-{upper}.npy', lag_error)
         np.save(f'../data/lag_subplots_data/period_{season}_{lower}-{upper}.npy', period)
         np.save(f'../data/lag_subplots_data/no_csa_{season}_{lower}-{upper}.npy', no_csa)
 
 
-def platecarree_plots_inset_hist_nonlinearcolours():
+def global_plots_mean_estimate():
     projection = ccrs.PlateCarree()
     axes_class = (GeoAxes,
                   dict(map_projection=projection))
@@ -101,12 +102,6 @@ def platecarree_plots_inset_hist_nonlinearcolours():
     for i, ax in enumerate(axgr):
         lag = np.load(f'../data/lag_subplots_data/lag_{seasons[i]}_{band_days_lower[i]}-{band_days_upper[i]}.npy')
         lag_for_hist = np.copy(lag)
-        lag_error = np.load(f'../data/lag_subplots_data/lag_error_{seasons[i]}_{band_days_lower[i]}-{band_days_upper[i]}.npy')
-        lag_upper = lag + lag_error
-        lag_lower = lag - lag_error
-        confidence_interval_overlaps_zero = (np.sign(lag_upper)/np.sign(lag_lower) == -1)
-        lag[confidence_interval_overlaps_zero] = np.nan
-        lag_for_hist[confidence_interval_overlaps_zero] = np.nan
         total_lags = (~np.isnan(lag_for_hist)).sum()
         neg_lags = (lag_for_hist < 0.).sum()
         pos_lags = (lag_for_hist > 0.).sum()
@@ -161,15 +156,15 @@ def platecarree_plots_inset_hist_nonlinearcolours():
     cbar = axgr.cbar_axes[0].colorbar(p)
     cbar.ax.tick_params(labelsize=16) 
     cbar.ax.set_xlabel('phase difference (days)', fontsize=18)
-    plt.savefig('../figures/lag_subplots_global_mean_phase_diff_estimate.png', dpi=600, bbox_inches='tight')
-    plt.savefig('../figures/lag_subplots_global_mean_phase_diff_estimate.pdf', dpi=1000, bbox_inches='tight')
+    plt.savefig('../figures/lag_subplots_mean_phase_diff_estimate.png', dpi=600, bbox_inches='tight')
+    plt.savefig('../figures/lag_subplots_mean_phase_diff_estimate.pdf', dpi=1000, bbox_inches='tight')
     plt.show()
 
 
-def platecarree_plots_with95ci():
+def global_plots_with95ci():
     projection = ccrs.PlateCarree()
     axes_class = (GeoAxes,
-                  dict(map_projection=projection)
+                  dict(map_projection=projection))
     lons = np.arange(-180, 180, 0.25) + 0.5*0.25
     lats = np.arange(-55, 55, 0.25) + 0.5*0.25
     lon_bounds = np.hstack((lons - 0.5*0.25, np.array([lons[-1]+0.5*0.25])))
@@ -211,7 +206,6 @@ def platecarree_plots_with95ci():
         percent_pos = np.round(float(positive_confidence_interval.sum())/float(total_lags) * 100.)
         percent_unsure = np.round(float(confidence_interval_overlaps_zero.sum())/float(total_lags) * 100.)
         no_csa = np.load(f'../data/lag_subplots_data/no_csa_{seasons[i]}_{band_days_lower[i]}-{band_days_upper[i]}.npy')
-        no_csa = no_csa[20:460]
         invalid_but_csa = np.logical_and(~no_csa, np.isnan(lag))
         lag_sign[invalid_but_csa] = -999
         ax.coastlines(color='#999999',linewidth=0.1)
@@ -245,8 +239,9 @@ def platecarree_plots_with95ci():
                              'phase difference\nindistinguishable from zero',
                              'positive\nphase difference'])
     cbar.ax.tick_params(labelsize=16)
-    plt.savefig('../figures/lag_subplots_global_platecarree_with95ci.png', dpi=600, bbox_inches='tight')
-    plt.savefig('../figures/lag_subplots_global_platecarree_with95ci.pdf', dpi=1000, bbox_inches='tight')
+    os.system('mkdir -p ../figures')
+    plt.savefig('../figures/lag_subplots_with95ci.png', dpi=600, bbox_inches='tight')
+    plt.savefig('../figures/lag_subplots_with95ci.pdf', dpi=1000, bbox_inches='tight')
     plt.show()
 
 
@@ -277,5 +272,6 @@ def lag_sign_stats(season, band_days_lower, band_days_upper):
 
 
 if __name__ == '__main__':
-    save_lags_to_file()
-    platecarree_plots_with95ci()
+    spectra_save_dir = '/prj/nceo/bethar/cross_spectral_analysis_results/test/'
+    save_lags_to_file(spectra_save_dir)
+    global_plots_with95ci()
