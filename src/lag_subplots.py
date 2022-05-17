@@ -250,6 +250,32 @@ def platecarree_plots_with95ci():
     plt.show()
 
 
+def lag_sign_stats(season, band_days_lower, band_days_upper):
+    lag = np.load(f'../data/lag_subplots_data/lag_{season}_{band_days_lower}-{band_days_upper}.npy')
+    lag_sign = np.ones_like(lag) * np.nan
+    lag_error = np.load(f'../data/lag_subplots_data/lag_error_{season}_{band_days_lower}-{band_days_upper}.npy')
+    lag_lower = lag - lag_error
+    lag_upper = lag + lag_error
+    total_px = (~np.isnan(lag)).sum()
+    pos_px = (lag > 0.).sum()
+    neg_px = (lag < 0.).sum()
+    pos_less_7 = np.logical_and(lag>0., lag<7.).sum()
+    pos_less_10 = np.logical_and(lag>0., lag<10.).sum()
+    pos_ci_px = (lag_lower>0.).sum()
+    neg_ci_px = (lag_upper<0.).sum()
+    cross_ci = np.logical_and(lag_upper>0., lag_lower<0.)
+    cross_ci_px = (cross_ci).sum()
+    print(f'total pixels: {total_px}')
+    print(f'positive lag: {pos_px}')
+    print(f'negative lag: {neg_px}')
+    print(f'positive and less than 7: {pos_less_7}')
+    print(f'positive and less than 10: {pos_less_10}')
+    print('Accounting for 95% CI:')
+    print(f'positive: {pos_ci_px}')
+    print(f'negative: {neg_ci_px}')
+    print(f'sign uncertain: {cross_ci_px}')
+
+
 if __name__ == '__main__':
     save_lags_to_file()
     platecarree_plots_with95ci()
