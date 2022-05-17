@@ -21,16 +21,16 @@ from read_csagan_saved_output import read_region_data
 reference_variable_name = 'IMERG'
 response_variable_name = 'VOD_X' # For plot titles/filenames
 tile = 'tropics'
-season = 'MAM'
+season = 'DJF'
 # Path to cross-spectral analysis output (as saved from csagan_multiprocessing.py)
 spectra_save_dir = '/prj/nceo/bethar/cross_spectral_analysis_results/test/'
-spectra_filename = f"{spectra_save_dir}/{tile}_IMERG_VOD_spectra_X_{season}_masksw_corrected.p"
+spectra_filename = f"{spectra_save_dir}/{tile}_IMERG_VOD_spectra_X_{season}_mask_sw_best85.p"
 # Periods defining the band of variability to analyse
 band_days_lower = 40.
 band_days_upper = 60.
 ##### END OF CONFIGURATION #####
 
-# Coordinates of bounding box to analyse/plot
+# Coordinates of tile extent
 lon_west = -180
 lon_east = 180
 tile_lats_south = {'tropics': -35, 'northern': 25, 'southern': -60}
