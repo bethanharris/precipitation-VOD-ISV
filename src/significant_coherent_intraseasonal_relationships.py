@@ -21,7 +21,6 @@ import cartopy.crs as ccrs
 from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from read_csagan_saved_output import read_region_data
 from plot_utils import *
-from lag_by_land_cover import *
 
 
 ##### CONFIGURATION SECTION #####
@@ -29,13 +28,14 @@ from lag_by_land_cover import *
 reference_variable_name = 'IMERG'
 response_variable_name = 'VOD_X' # For plot titles/filenames
 tile = 'tropics'
-season = 'DJF'
+season = 'MAM'
 # Path to cross-spectral analysis output (as saved from csagan_multiprocessing.py)
-spectra_save_dir = '/prj/nceo/bethar/cross_spectral_analysis_results/'
-spectra_filename = f"{spectra_save_dir}/{tile}_IMERG_VOD_spectra_X_{season}_mask_sw_best85.p"
+spectra_save_dir = '/prj/nceo/bethar/cross_spectral_analysis_results/test/'
+spectra_filename = f"{spectra_save_dir}/{tile}_IMERG_VOD_spectra_X_{season}_masksw_corrected.p"
 # Periods defining the band of variability to analyse
-band_days_lower = 25.
-band_days_upper = 40.
+band_days_lower = 40.
+band_days_upper = 60.
+##### END OF CONFIGURATION #####
 
 # Coordinates of bounding box to analyse/plot
 lon_west = -180
@@ -44,6 +44,15 @@ tile_lats_south = {'tropics': -35, 'northern': 25, 'southern': -60}
 tile_lats_north = {'tropics': 35, 'northern': 65, 'southern': -25}
 lat_south = tile_lats_south[tile]
 lat_north = tile_lats_north[tile]
+
+# Check whether you remembered to change the filename for the CSA output... not foolproof...
+variable_name_components = reference_variable_name.split('_') + response_variable_name.split('_')
+if not(all([v in spectra_filename for v in variable_name_components])):
+    print('#############################')
+    print('Check this is the right CSA output file, it does not seem to match variables selected.')
+    print('#############################')
+lats, lons, spectra = read_region_data(spectra_filename, tile, lon_west, lon_east, lat_south, lat_north, resolution=0.25)
+no_csa = (spectra == {})
 
 
 def neighbourhood_indices(lat_idx, lon_idx):
@@ -208,7 +217,7 @@ def run_neighbourhood_averaging():
     neighbourhood_averages['lag_error'] = np.reshape(output_array[:, 4], (lats.size, lons.size), order='F')
     neighbourhood_averages['amplitude'] = np.reshape(output_array[:, 5], (lats.size, lons.size), order='F')
     end = time.time()
-    print(f'Time taken to compute neighbourhood averages: {end-start:0.1f} seconds')
+    print(f'Time taken to compute intraseasonal averages: {end-start:0.1f} seconds')
     return neighbourhood_averages
 
 
