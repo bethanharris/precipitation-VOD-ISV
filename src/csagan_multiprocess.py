@@ -392,4 +392,4 @@ if __name__ == '__main__':
     dud_pixels = (results=={}).sum(axis=1).sum(axis=0)
     print(f'completed {total_pixels} pixels in {end-start} seconds, {dud_pixels} pixels did not have enough data for computation')
     band_label = f'_{band}' if (reference_variable == 'VOD' or response_variable == 'VOD') else ''
-    write_to_dataset(f'/prj/nceo/bethar/cross_spectral_analysis_results/test/{region_name}_{reference_variable}_{response_variable}_spectra{band_label}_{season}_masksw_corrected.p', results, lats, lons)
+    write_to_dataset(f'/prj/nceo/bethar/cross_spectral_analysis_results/test/{region_name}_{reference_variable}_{response_variable}_spectra{band_label}_{season}_mask_sw_best85.p', results, lats, lons)
