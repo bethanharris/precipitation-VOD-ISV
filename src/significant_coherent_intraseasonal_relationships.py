@@ -13,14 +13,7 @@ import pickle
 import itertools
 from tqdm import tqdm
 from multiprocessing import Pool
-import matplotlib as mpl
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import cartopy.feature as feat
-import cartopy.crs as ccrs
-from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from read_csagan_saved_output import read_region_data
-from plot_utils import *
 
 
 ##### CONFIGURATION SECTION #####
