@@ -145,13 +145,18 @@ def all_season_validity(spectra_save_dir, tile, band_days_lower, band_days_upper
 def hist_lc(mask_lag, lc_codes, land_cover_code, density=False):
     all_lags = []
     for season in mask_lag.keys():
-        season_lags = mask_lag[season][lc_codes==land_cover_code]
+        if land_cover_code == 'all':
+            all_lc_codes = ['Bare/sparse vegetation','Herbaceous vegetation',
+                            'Shrubland','Cropland','Open forest', 'Closed forest']
+            season_lags = mask_lag[season][np.isin(lc_codes, all_lc_codes)]
+        else:
+            season_lags = mask_lag[season][lc_codes==land_cover_code]
         all_lags += season_lags.tolist()
     hist, _ = np.histogram(all_lags, bins=np.arange(-30, 31, 1), density=density)
     return hist
 
 
-def subplots(spectra_save_dir, density=False, show_95ci=True):
+def subplots(spectra_save_dir, density=False, show_95ci=True, all_lc_line=False):
     fig = plt.figure(figsize=(11, 9))
     gs = fig.add_gridspec(2, 4)
     ax1 = fig.add_subplot(gs[0, :], projection=ccrs.PlateCarree())
@@ -208,6 +213,9 @@ def subplots(spectra_save_dir, density=False, show_95ci=True):
     for land_cover_code in lc_colors.keys():
         hist = hist_lc(lag_2540, lc_codes, land_cover_code, density=density)
         ax2.plot(bin_centres, hist, '-o', color=lc_colors[land_cover_code], ms=3)
+    if all_lc_line:
+        hist = hist_lc(lag_2540, lc_codes, 'all', density=density)
+        ax2.plot(bin_centres, hist, '--', color='k', ms=0, linewidth=1)
     ax2.tick_params(labelsize=14)
     ax2.set_xlim([-30, 30])
     ax2.set_xlabel('phase difference (days)', fontsize=16)
@@ -231,6 +239,9 @@ def subplots(spectra_save_dir, density=False, show_95ci=True):
     for land_cover_code in lc_colors.keys():
         hist = hist_lc(lag_4060, lc_codes, land_cover_code, density=density)
         ax3.plot(bin_centres, hist, '-o', color=lc_colors[land_cover_code], ms=3)
+    if all_lc_line:
+        hist = hist_lc(lag_4060, lc_codes, 'all', density=density)
+        ax3.plot(bin_centres, hist, '--', color='k', ms=0, linewidth=1)
     ax3.tick_params(labelsize=14)
     ax3.set_xlim([-30, 30])
     ax3.set_xlabel('phase difference (days)', fontsize=16)
@@ -251,6 +262,8 @@ def subplots(spectra_save_dir, density=False, show_95ci=True):
         save_filename += '_density'
     if show_95ci:
         save_filename += '_median95ci'
+    if all_lc_line:
+        save_filename += '_showall'
     plt.savefig(f'{save_filename}.png', dpi=600, bbox_inches='tight')
     plt.savefig(f'{save_filename}.pdf', dpi=900, bbox_inches='tight')
     plt.show()
@@ -353,6 +366,6 @@ def median_values(spectra_save_dir, band_days_lower, band_days_upper):
 
 if __name__ == '__main__':
     spectra_save_dir = '/prj/nceo/bethar/cross_spectral_analysis_results/test/'
-    subplots(spectra_save_dir, density=True, show_95ci=True)
-    subplots_percent_validity(spectra_save_dir)
+    subplots(spectra_save_dir, density=True, show_95ci=True, all_lc_line=True)
+    # subplots_percent_validity(spectra_save_dir)
  
