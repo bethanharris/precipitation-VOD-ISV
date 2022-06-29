@@ -176,8 +176,14 @@ def subplots(spectra_save_dir, density=False, show_95ci=True, all_lc_line=False)
     lon_bounds = np.hstack((lons - 0.5*0.25, np.array([lons[-1]+0.5*0.25])))
     lat_bounds = np.hstack((lats - 0.5*0.25, np.array([lats[-1]+0.5*0.25])))
     levels = np.arange(1, 8) - 0.5
-    lc_colors = ['#ffd92f', '#8da0cb', '#fc8d62', '#e78ac3','#a6d854', '#66c2a5']
-    lc_cmap, lc_norm = binned_cmap(levels, 'tab10', fix_colours=[(i, c) for i, c in enumerate(lc_colors)])
+    lc_colors = {'Bare/sparse vegetation': '#ffd92f',
+                 'Herbaceous vegetation': '#EA8294',
+                 'Shrubland': '#AA4499',
+                 'Cropland': '#88CCEE',
+                 'Open forest': '#889933',
+                 'Closed forest': '#117733'}
+    color_list = list(lc_colors.values())
+    lc_cmap, lc_norm = binned_cmap(levels, 'tab10', fix_colours=[(i, c) for i, c in enumerate(color_list)])
     lc_cmap.set_bad('w')
     lc_cmap.set_under('w')
     p = ax1.pcolormesh(lon_bounds, lat_bounds, lc_array, transform=ccrs.PlateCarree(), 
@@ -202,17 +208,11 @@ def subplots(spectra_save_dir, density=False, show_95ci=True, all_lc_line=False)
     ax1.set_title("$\\bf{(a)}$" + ' Modal land cover class (Copernicus 2018)', fontsize=14)    
     lag_2540 = all_season_lags(spectra_save_dir, 'global', 25, 40)
     lc_codes = copernicus_land_cover(lat_south=-55, lat_north=55)
-    lc_colors = {'Bare/sparse vegetation': '#ffd92f',
-                 'Herbaceous vegetation': '#8da0cb',
-                 'Shrubland': '#fc8d62',
-                 'Cropland': '#e78ac3',
-                 'Open forest': '#a6d854',
-                 'Closed forest': '#66c2a5'}
     lag_bins = np.arange(-30, 31, 1)
     bin_centres = lag_bins[:-1] + (lag_bins[1] - lag_bins[0])/2.
     for land_cover_code in lc_colors.keys():
         hist = hist_lc(lag_2540, lc_codes, land_cover_code, density=density)
-        ax2.plot(bin_centres, hist, '-o', color=lc_colors[land_cover_code], ms=3)
+        ax2.plot(bin_centres, hist, '-o', color=lc_colors[land_cover_code], ms=2.5)
     if all_lc_line:
         hist = hist_lc(lag_2540, lc_codes, 'all', density=density)
         ax2.plot(bin_centres, hist, '--', color='k', ms=0, linewidth=1)
@@ -230,7 +230,7 @@ def subplots(spectra_save_dir, density=False, show_95ci=True, all_lc_line=False)
         ci_line = Rectangle((27.-2*median_lag_error, ylims[0]+0.925*y_range), 2*median_lag_error, 0.0025*y_range, edgecolor='k', facecolor='k')
         line_middle = [27.-median_lag_error, ylims[0]+0.92625*y_range]
         ax2.add_artist(ci_line)
-        ax2.plot(line_middle[0], line_middle[1], 'k-o', ms=3)
+        ax2.plot(line_middle[0], line_middle[1], 'k-o', ms=2.5)
         ax2.text(line_middle[0], line_middle[1]-0.075*y_range, '95% CI', fontsize=12, transform=ax2.transData, ha='center')
     ax2.text(0.03, 0.9, '$\\bf{(b)}$', fontsize=14, transform=ax2.transAxes)
     ax2.text(0.03, 0.82, u'25\u201340 days', fontsize=14, transform=ax2.transAxes)
@@ -238,7 +238,7 @@ def subplots(spectra_save_dir, density=False, show_95ci=True, all_lc_line=False)
     lag_4060 = all_season_lags(spectra_save_dir, 'global', 40, 60)
     for land_cover_code in lc_colors.keys():
         hist = hist_lc(lag_4060, lc_codes, land_cover_code, density=density)
-        ax3.plot(bin_centres, hist, '-o', color=lc_colors[land_cover_code], ms=3)
+        ax3.plot(bin_centres, hist, '-o', color=lc_colors[land_cover_code], ms=2.5)
     if all_lc_line:
         hist = hist_lc(lag_4060, lc_codes, 'all', density=density)
         ax3.plot(bin_centres, hist, '--', color='k', ms=0, linewidth=1)
@@ -252,7 +252,7 @@ def subplots(spectra_save_dir, density=False, show_95ci=True, all_lc_line=False)
         ci_line = Rectangle((27.-2*median_lag_error, ylims[0]+0.925*y_range), 2*median_lag_error, 0.0025*y_range, edgecolor='k', facecolor='k')
         line_middle = [27.-median_lag_error, ylims[0]+0.92625*y_range]
         ax3.add_artist(ci_line)
-        ax3.plot(line_middle[0], line_middle[1], 'k-o', ms=3)
+        ax3.plot(line_middle[0], line_middle[1], 'k-o', ms=2.5)
         ax3.text(line_middle[0], line_middle[1]-0.075*y_range, '95% CI', fontsize=12, transform=ax3.transData, ha='center')
     ax3.text(0.03, 0.9, '$\\bf{(c)}$', fontsize=14, transform=ax3.transAxes)
     ax3.text(0.03, 0.82, u'40\u201360 days', fontsize=14, transform=ax3.transAxes)
@@ -273,6 +273,9 @@ def plot_global_percent_validity(spectra_save_dir, ax, band_days_lower, band_day
     land_cover_codes = ['Bare/sparse vegetation','Herbaceous vegetation',
      'Shrubland','Cropland','Open forest', 'Closed forest']
     tile = 'global'
+    number_obs_save_dir = '../data/number_vod_obs'
+    if not os.path.isdir(number_obs_save_dir):
+        raise IOError('Data on inundation masking not yet saved. Run save_all_seasonal_obs_numbers() from inundation_mask_maps.py')
     validity = all_season_validity(spectra_save_dir, tile, band_days_lower, band_days_upper)
     seasons = validity.keys()
     tile_lat_south = lats_south[tile]
@@ -282,25 +285,38 @@ def plot_global_percent_validity(spectra_save_dir, ax, band_days_lower, band_day
     incoherent_pixels = {code: 0 for code in land_cover_codes}
     no_obs_pixels = {code: 0 for code in land_cover_codes}
     total_pixels = {code: 0 for code in land_cover_codes}
+    inundation_masked_pixels = {code: 0 for code in land_cover_codes}
     for code in land_cover_codes:
         for season in seasons:
             coherent_pixels[code] += np.logical_and(validity[season]==1, lc_codes==code).sum()
             incoherent_pixels[code] += np.logical_and(validity[season]==0, lc_codes==code).sum()
             no_obs_pixels[code] += np.logical_and(validity[season]==2, lc_codes==code).sum()
             total_pixels[code] += (lc_codes==code).sum()
+            possible_obs = np.load(f'{number_obs_save_dir}/total_possible_obs_{season}.npy')
+            obs_before_mask = np.load(f'{number_obs_save_dir}/total_obs_no_sw_mask_{season}.npy')
+            obs_after_mask = np.load(f'{number_obs_save_dir}/total_obs_sw_mask_{season}.npy')
+            percent_before_mask = 100. * obs_before_mask / possible_obs
+            percent_after_mask = 100. * obs_after_mask / possible_obs
+            removed_by_inundation = np.logical_and(percent_before_mask>=30., percent_after_mask<30.)
+            inundation_masked_pixels[code] += np.logical_and(removed_by_inundation==1, lc_codes==code).sum()
     coherent_list = np.array([value for value in coherent_pixels.values()])
     incoherent_list = np.array([value for value in incoherent_pixels.values()])
+    inundation_masked_list = np.array([value for value in inundation_masked_pixels.values()])
     no_obs_list = np.array([value for value in no_obs_pixels.values()])
+    no_obs_before_inundation = no_obs_list - inundation_masked_list
     total_list = np.array([value for value in total_pixels.values()])
     coherent_percent = 100.*coherent_list/total_list
     incoherent_percent = 100.*incoherent_list/total_list
-    no_obs_percent = 100.*no_obs_list/total_list
+    inundation_percent = 100.*inundation_masked_list/total_list
+    no_obs_percent = 100.*no_obs_before_inundation/total_list
     coherent_percent_of_obs = 100.*(coherent_list/(coherent_list+incoherent_list))
     land_cover_labels = [line_break_string(label, 10) for label in land_cover_codes]
     width = 1
-    ax.bar(land_cover_labels, coherent_percent, width, color=['#ffd92f','#8da0cb','#fc8d62','#e78ac3','#a6d854','#66c2a5'], edgecolor='k', linewidth=0.75, label='Coherency\n> 95% CL')
+    lc_colors = ['#ffd92f', '#EA8294', '#AA4499', '#88CCEE', '#889933', '#117733']
+    ax.bar(land_cover_labels, coherent_percent, width, color=lc_colors, edgecolor='k', linewidth=0.75, label='Coherency\n> 95% CL')
     ax.bar(land_cover_labels, incoherent_percent, width, color='#ffffff', edgecolor='k', linewidth=0.75, bottom=coherent_percent, label='No coherency\n> 95% CL')
-    ax.bar(land_cover_labels, no_obs_percent, width, color='#cccccc', edgecolor='k', linewidth=0.75, bottom=coherent_percent+incoherent_percent, label='Insufficient obs')
+    ax.bar(land_cover_labels, inundation_percent, width, color='#cccccc', edgecolor='k', hatch='/', linewidth=0.75, bottom=coherent_percent+incoherent_percent, label='Insufficient obs after inundation masking')
+    ax.bar(land_cover_labels, no_obs_percent, width, color='#cccccc', edgecolor='k', linewidth=0.75, bottom=coherent_percent+incoherent_percent+inundation_percent, label='Insufficient obs')
     ax.set_ylim([0, 100])
     ax.set_xlim([-0.5, len(land_cover_codes)-0.5])
     ax.tick_params(labelsize=14)
@@ -314,11 +330,11 @@ def subplots_percent_validity(spectra_save_dir):
     plot_global_percent_validity(spectra_save_dir, ax2540, 25, 40)
     plot_global_percent_validity(spectra_save_dir, ax4060, 40, 60)
     plt.subplots_adjust(right=0.8, wspace=0.05)
-    color_list = ['#ffd92f','#8da0cb','#fc8d62','#e78ac3','#a6d854','#66c2a5']
+    color_list = ['#ffd92f', '#EA8294', '#AA4499', '#88CCEE', '#889933', '#117733']
     greys = ['#cccccc']*6
     whites = ['#ffffff']*6
-    cmaps = [color_list, whites, greys]
-    cmap_labels = ['Coherency\n> 95% CL', 'No coherency\n> 95% CL', 'Insufficient obs']
+    cmaps = [color_list, whites, greys, greys]
+    cmap_labels = ['Coherency\n> 95% CL', 'No coherency\n> 95% CL', 'Insufficient obs\nafter inundation\nmasking', 'Insufficient obs']
     cmap_handles = [Rectangle((0, 0), 1, 1, edgecolor='k', linewidth=0.75) for _ in cmaps]
     handler_map = dict(zip(cmap_handles, 
                            [StripyPatch(cm) for cm in cmaps]))
@@ -326,9 +342,10 @@ def subplots_percent_validity(spectra_save_dir):
                                loc='center left', bbox_to_anchor=(1.05, 0.5), frameon=True)
     # this bit just uses a second legend to put nice borders around the legend patches
     # and hide artefacts in the non-striped boxes
-    dummy_labels = ['\n', '\n', '']
-    dummy_colours = ['none', '#ffffff', '#cccccc']
-    border_boxes = [Rectangle((0, 0), 1.05, 1.05, fc=fc, edgecolor='k', linewidth=0.5) for fc in dummy_colours]
+    dummy_labels = ['\n', '\n', '\n\n', '']
+    dummy_colours = ['none', '#ffffff', '#cccccc', '#cccccc']
+    dummy_hatches = ['', '', '//', '']
+    border_boxes = [Rectangle((0, 0), 1.05, 1.05, fc=fc, hatch=h, edgecolor='k', linewidth=0.5) for fc, h in zip(dummy_colours, dummy_hatches)]
     legend_borders = ax4060.legend(handles=border_boxes, labels=dummy_labels,
                                    fontsize=12, loc='center left', bbox_to_anchor=(1.05, 0.5), 
                                    frameon=False)
@@ -336,7 +353,7 @@ def subplots_percent_validity(spectra_save_dir):
     ax2540.set_ylabel(r'% of pixels', fontsize=16)
     ax2540.set_title("$\\bf{(a)}$" + u" 25\u201340 days", fontsize=16, pad=25)
     ax4060.set_title("$\\bf{(b)}$" + u" 40\u201360 days", fontsize=16, pad=25)
-    save_filename = f'../figures/validity_percentage_by_land_cover_global_subplots'
+    save_filename = f'../figures/validity_percentage_by_land_cover_global_subplots_inundation'
     plt.savefig(f'{save_filename}.pdf', dpi=600, bbox_inches='tight')
     plt.savefig(f'{save_filename}.png', dpi=600, bbox_inches='tight')
     plt.show()
@@ -367,5 +384,5 @@ def median_values(spectra_save_dir, band_days_lower, band_days_upper):
 if __name__ == '__main__':
     spectra_save_dir = '/prj/nceo/bethar/cross_spectral_analysis_results/test/'
     subplots(spectra_save_dir, density=True, show_95ci=True, all_lc_line=True)
-    # subplots_percent_validity(spectra_save_dir)
+    subplots_percent_validity(spectra_save_dir)
  
