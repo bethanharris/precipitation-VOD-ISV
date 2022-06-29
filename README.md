@@ -6,13 +6,14 @@ This repository contains code to reproduce the analysis and figures of Harris et
 Note that this analysis relies upon Fortran code containing an algorithm for the Lomb-Scargle periodogram, from:
 >Weedon et al. (2015). Evaluating the performance of hydrological models via cross-spectral analysis: case study of the Thames Basin, United Kingdom. *Journal of Hydrometeorology*, **16**(1), 214--231.
 
-This code is not included here, but arrangements are currently being made for it to be available in another repository.
+This code is not included here, but it is freely available from the [Met Office Science Repository Service](https://code.metoffice.gov.uk/). Access will require registration for an account and this will be supported by a member of the JULES group (please see the following page for details: https://code.metoffice.gov.uk/trac/home/wiki/FAQ#Requestinganaccount). The code used in this analysis is available here: [https://code.metoffice.gov.uk/trac/lmed/browser#main/trunk/benchmarking](https://code.metoffice.gov.uk/trac/lmed/browser#main/trunk/benchmarking).
 
 # Cross-spectral analysis
 
 The code can be used to perform the cross-spectral analysis described in Section 2 of the paper as follows:
-- Obtain the Fortran code containing the Lomb-Scargle periodogram algorithm from Weedon et al. (2015) (multiprocessing version)
-- Compile this (requires linking to netCDF libraries)
+- Obtain the Fortran code containing the Lomb-Scargle periodogram algorithm from Weedon et al. (2015) (csagan1.1.f from the Met Office repository described above).
+- Enable multiprocessing with [csagan_multiprocess.py](src/csagan_multiprocess.py) following steps in [multiprocessing_setup.txt](multiprocessing_setup.txt)
+- Compile csagan (requires linking to netCDF libraries)
 - Run bash script [csa_multiprocess_tiles](src/csa_multiprocess_tiles). This will run the cross-spectral analysis for all pixels/seasons, saving the results in three latitude-band tiles for each season. The save directory is set in [csagan_multiprocess.py](src/csagan_multiprocess.py). A single season takes approximately 8 hours to process and produces ~3--5 GB of saved data.
 - Run [significant_coherent_intraseasonal_relationships.py](src/significant_coherent_intraseasonal_relationships.py) for each tile ('tropics', 'northern', 'southern'), season and frequency-of-variability band. These variables have to be set at the top of the .py file before running. This computes and saves details of the coherent relationships that are 95% significant based on the 3-neighbour condition described in Section 2 of the paper.
 

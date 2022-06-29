@@ -1,0 +1,30 @@
+Instructions for getting csagan1.1.f to work with multiprocessing setup of csagan_multiprocess.py
+
+Line 183:
+Between FORMT and NDOF declare an additional integer PROCID
+
+L267: add the following
+WRITE(*,*)'Input process ID:'
+READ(*,*)PROCID
+
+L1213: Replace 
+READ(*,'(A)',IOSTAT=IOS)LMN
+with
+LMN = 'P'
+
+L1216-1220:
+Comment these lines out.
+
+L1498-1501:
+Replace with DOFFIX='Y'
+
+L2025:
+Replace OUTFILE='csaout.nc' with WRITE (OUTFILE,"(A7,I0,A3)") "csaout-", PROCID, ".nc"
+
+L2182:
+Add
+    STATUS=nf90_put_att(OUTID,nf90_global,'Resolution_bandwidth',
++          BW)
+
+L2241:
+Replace OUTFILE='csaout-phase-coh95.nc' with WRITE (OUTFILE,"(A15,I0,A3)") "csaout-phase95-",PROCID,".nc"
