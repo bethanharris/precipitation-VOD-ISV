@@ -6,7 +6,7 @@ This repository contains code to reproduce the analysis and figures of Harris et
 Note that this analysis relies upon Fortran code containing an algorithm for the Lomb-Scargle periodogram, from:
 >Weedon et al. (2015). Evaluating the performance of hydrological models via cross-spectral analysis: case study of the Thames Basin, United Kingdom. *Journal of Hydrometeorology*, **16**(1), 214--231.
 
-This code is not included here, but it is freely available from the [Met Office Science Repository Service](https://code.metoffice.gov.uk/). Access will require registration for an account and this will be supported by a member of the JULES group (please see the following page for details: https://code.metoffice.gov.uk/trac/home/wiki/FAQ#Requestinganaccount). The code used in this analysis is available here: [https://code.metoffice.gov.uk/trac/lmed/browser#main/trunk/benchmarking](https://code.metoffice.gov.uk/trac/lmed/browser#main/trunk/benchmarking).
+This code is not included here, but it is freely available for to anyone to use from the Met Office Science Repository Service at [https://code.metoffice.gov.uk/trac/lmed/browser#main/trunk/benchmarking](https://code.metoffice.gov.uk/trac/lmed/browser#main/trunk/benchmarking) (last access: 29 June 2022). Access requires registration for an account and this will be supported by a member of the JULES group. Requests for new accounts can be made by emailing [Jules-Support@metoffice.gov.uk](mailto:Jules-Support@metoffice.gov.uk) with details of the user’s name, email address, institution and purpose for requiring access.
 
 # Cross-spectral analysis
 
