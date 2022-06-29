@@ -19,11 +19,13 @@ The code can be used to perform the cross-spectral analysis described in Section
 # Figures
 - **Figure 1**: produced by running csa_illustration.py (requires Lomb-Scargle Fortran code)
 - **Figure 2**: lag_subplots.py
-- **Figure 3** and **Figure S5**: lag_by_land_cover.py
+- **Figure 3** and **Figure S6**: lag_by_land_cover.py
 - **Figure 4**: first run isv_events_surface_water_tiles.py to save standardised anomalies of the observed variables and save the dates of intraseasonal precipitation events at each pixel. Then isv_composites_surface_water_filter_tiles.py generates the figure.
 - **Figure S1**: Created using function filter_pixel() in vod_surface_water_filter_best.py with kwarg demo_figure=True
-- **Figure S3**: percent_rainfall_variability_in_isv.py
+- **Figure S2**: inundation_mask_maps.py. This also saves data on the number of valid observations before and after inundation masking, which is required by lag_by_land_cover.py to plot Figure S6.
 - **Figure S4**: save_example_pixel_time_series.py saves the time series at the example locations to file. Then plot with example_pixel_time_series_plots_multiyear.py
+- **Figure S5**: percent_rainfall_variability_in_isv.py
+
 
 # Other files
 - vod_filter_monthly_global.py is used to mask random single-timestep spikes in the VOD data, as described in Section 2.1
