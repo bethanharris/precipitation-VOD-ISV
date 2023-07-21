@@ -29,6 +29,30 @@ variable_names = {'IMERG': 'Precipitation (IMERG)',
 
 
 def pad_match_time(dates1, dates2, data1, data2):
+    """
+    For two arrays of data with dimensions time/lon/lat or time/lat/lon,
+    add grids filled with NaNs along 0th dimension to one or both arrays
+    as appropriate so that they cover the same time stamps.
+    Parameters
+    ----------
+    dates1: numpy array (1D)
+        Dates corresponding to the observations in array data1
+    dates2: numpy array (1D)
+        Dates corresponding to the observations in array data2
+    data1: numpy array (3D)
+        Array of data observed at times from dates1
+    data2: numpy array (3D)
+        Array of data observed at times from dates2
+    Returns
+    -------
+    dates: numpy array (1D)
+        Array of dates covering all observations in both datasets
+    data1_pad: numpy array (3D)
+        Data from data1 matched to common timestamps of dates
+    data2_pad: numpy array (3D)
+        Data from data2 matched to common timestamps of dates
+    """
+    # Check whether the arrays already share the same time stamps
     if (dates1.shape == dates2.shape) and np.allclose(dates1, dates2):
     	return dates1, data1, data2
     else:
@@ -45,6 +69,18 @@ def pad_match_time(dates1, dates2, data1, data2):
 
 
 def season_from_abbr(season_abbr):
+    """
+    Produce a list of month numbers from a season abbreviation,
+    e.g. MAM -> [3, 4, 5]
+    Parameters
+    ----------
+    season_abbr: str
+        Abbreviation for season (i.e. initials of 2+ consecutive months)
+    Returns
+    -------
+    month_list: list
+        List of integers corresponding to the month number of each month in season (1=Jan,...)
+    """
     if len(season_abbr) < 2:
         raise KeyError('Use seasons longer than one month')
     rolling_months = ''.join([m[0] for m in calendar.month_abbr[1:]])*2
@@ -58,6 +94,23 @@ def season_from_abbr(season_abbr):
 
 
 def mask_to_months(dates, data, month_list=np.arange(12)+1):
+    """
+    Mask any data outside of a fixed list of months to NaN.
+    Parameters
+    ----------
+    dates: numpy array of decimal dates
+        Dates corresponding to the data time stamps
+    data: numpy array
+        Data to be masked. Time must be dimension 0
+    month_list (kwarg): list or numpy array
+        List of permitted months, e.g. if month_list = [3, 4, 5]
+        then only data in MAM will remain valid after masking.
+        Default is for all months to be included.
+    Returns
+    -------
+    masked_data: numpy array
+        Data masked to selecte months
+    """
     all_months = np.array([num2date(d, units='days since 1970-01-01', calendar='gregorian').month for d in dates])
     mask = ~np.isin(all_months, np.array(month_list))
     masked_data = np.copy(data)
@@ -262,6 +315,19 @@ def reference_response_spectra(exe_filename, process_id, reference_variable, res
 
 
 def csa_from_indices(coords):
+    """
+    Perform cross-spectral analysis for a single pixel.
+    Written to work with multiprocessing using init_worker() function,
+    relies on shared data having been created using the make_shared_array().
+    Parameters
+    ----------
+    coords: tuple
+        Coordinates of pixel in format (latitude_index, longitude_index)
+    Returns
+    -------
+    spectra: dict
+    Dictionary of cross-spectral analysis results (frequency, coherency, amplitude, phase difference) for pixel
+    """
     response_variable = init_dict['response_variable']
     reference_variable = init_dict['reference_variable']
     decimal_dates = np.frombuffer(init_dict['dates']).reshape(init_dict['dates_shape'])
@@ -270,6 +336,8 @@ def csa_from_indices(coords):
     lat_idx, lon_idx = coords
     readings_reference = (~np.isnan(reference_array[:, lat_idx, lon_idx])).astype(int).sum()
     readings_response = (~np.isnan(response_array[:, lat_idx, lon_idx])).astype(int).sum()
+    # Feed data to analysis function only if both reference and response variables have at least one reading
+    # (e.g. skip ocean pixels for rainfall-vegetation analysis)
     sufficient_readings = (readings_reference > 0.) and (readings_response > 0.)
     if sufficient_readings:
         px_ids = np.frombuffer(init_dict['px_id']).reshape(init_dict['px_id_shape'])
@@ -285,6 +353,20 @@ def csa_from_indices(coords):
 
 
 def make_shared_array(data_array, dtype=np.float64):
+    """
+    Create shared array of data for multiprocessing.
+    NOTE: not tested on anything other than float64 data.
+    Parameters
+    ----------
+    data_array: numpy array
+        Array of data that will need to be accessed by workers from multiprocessing pool
+    dtype (kwarg, default=np.float64): dtype
+        Datatype in the numpy array
+    Returns
+    -------
+    data_shared: numpy array
+    data_array.shape: shape of the data array
+    """
     data_shared = RawArray('d', data_array.size)
     data_shared_np = np.frombuffer(data_shared, dtype=dtype).reshape(data_array.shape)
     np.copyto(data_shared_np, data_array)
@@ -294,6 +376,9 @@ def make_shared_array(data_array, dtype=np.float64):
 def init_worker(reference_variable, response_variable, decimal_dates, dates_shape,
                 reference_array, reference_shape, response_array, response_shape,
                 px_id_array, px_id_shape):
+    """
+    Helper function for the multiprocessing. Makes all the relevant data accessible by all the processes.
+    """
     init_dict['reference_variable'] = reference_variable
     init_dict['response_variable'] = response_variable
     init_dict['dates'] = decimal_dates
@@ -307,6 +392,29 @@ def init_worker(reference_variable, response_variable, decimal_dates, dates_shap
 
 
 def write_to_dataset(filename, results, results_lats, results_lons):
+    """
+    Save results of cross-spectral analysis to file.
+    If the file already exists, it will be loaded and the new results written in.
+    This allows analysis to be done in tiles without creating lots of files.
+    Assumes files saved with names according to latitude bands:
+    southern = 60S-25S
+    tropics = 35S-35N
+    northern = 25N-65S
+    polar = 55N-80N
+    Parameters
+    ----------
+    filename: str
+        Path to file where cross-spectral results are to be stored
+    results: numpy array (2D)
+        Lat-lon grid of results of cross-spectral analysis produced by reference_response_spectra()
+    results_lats: numpy array (1D)
+        Array of latitude points for area of results
+    results_lons: numpy array (1D)
+        Array of longitude points for area of results
+    Returns
+    -------
+    None
+    """
     if 'tropics' in filename:
         lat_south = -35
         lat_north = 35
@@ -355,17 +463,21 @@ if __name__ == '__main__':
 
     reference_variable = 'IMERG'
     response_variable = 'VOD'
-    band = 'X' #only relevant for VOD
+    band = 'X' #only relevant for VOD. Will be ignored for other variables
     months = season_from_abbr(season)
+    # Create arrays of time and data for both reference and response variables.
+    # Don't analyse pixels with fewer than percent_readings_required % of valid obs over all timesteps
+    # Use flip_response_sign if a positive change in reference_variable leads to a negative change in response_variable (otherwise output lags won't make sense)
     decimal_dates, reference_array, response_array, lats, lons = make_data_arrays(reference_variable, response_variable,
-                                                                                  band=band, mask_surface_water=True,
+                                                                                  band=band, mask_surface_water=True, #mask_surface_water also only relevant for VOD
                                                                                   lon_west=lon_west, lon_east=lon_east,
                                                                                   lat_south=lat_south, lat_north=lat_north,
                                                                                   min_year=2000, max_year=2018,
                                                                                   return_coords=True, flip_response_sign=False,
                                                                                   month_list=months,
-                                                                                  percent_readings_required=30.)
+                                                                                  percent_readings_required=30.) 
    
+    # Set up ID labels for each pixel and shared arrays to be used by multiprocessing pool
     total_pixels = reference_array[0, :, :].size
 
     lat_idcs = np.arange(response_array.shape[1])
@@ -382,7 +494,7 @@ if __name__ == '__main__':
     shared_data = (reference_variable, response_variable, dates_shared, dates_shape,
                    reference_shared, reference_shape, response_shared, response_shape,
                    px_id_shared, px_id_shape)
-
+    # Perform cross-spectral analysis for each pixel in selected region and save results with pickle
     print(f'start pool: {total_pixels} pixels')
     start = time.time()
     with Pool(processes=8, initializer=init_worker, initargs=shared_data) as pool:
