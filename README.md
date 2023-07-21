@@ -1,7 +1,7 @@
 # precipitation-VOD-ISV
 Code for Harris et al. "Satellite-Observed Vegetation Responses to Intraseasonal Precipitation Variability"
 
-This repository contains code to reproduce the analysis and figures of Harris et al. "Satellite-Observed Vegetation Responses to Intraseasonal Precipitation Variability" (submitted to Geophysical Research Letters).
+This repository contains code to reproduce the analysis and figures of Harris et al. (2022) *Satellite-Observed Vegetation Responses to Intraseasonal Precipitation Variability.* Geophysical Research Letters **49**(15) e2022GL099635: [https://doi.org/10.1029/2022GL099635](https://doi.org/10.1029/2022GL099635).
 
 Note that this analysis relies upon Fortran code containing an algorithm for the Lomb-Scargle periodogram, from:
 >Weedon et al. (2015). Evaluating the performance of hydrological models via cross-spectral analysis: case study of the Thames Basin, United Kingdom. *Journal of Hydrometeorology*, **16**(1), 214--231.
