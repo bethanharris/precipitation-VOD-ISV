@@ -17,9 +17,20 @@ from datetime_utils import *
 import sys
 
 
-init_dict = {}
+# Perform cross-spectral analysis on 3D netCDF data using csagan and save results (with pickle).
+# csagan is run separately for each pixel to allow for each pixel having missing data
+# at different time steps. Multiprocessing is used to make this feasible.
+# Analysis is performed in one of four latitude bands ("polar", northern", "tropics", "southern") 
+# to fit data in memory. The latitude bands overlap slightly in order to make it easier
+# to test the neighbours of each pixel later on in the processing chain.
+# See the bash script csa_multiprocess_tiles to run this script for all latitude bands/seasons.
+# read_csagan_saved_output.py will read in the pickle files that this script produces.
+# Designed to work with 19 years of daily data at 0.25° horizontal resolution.
 
 
+init_dict = {} # Dictionary to contain data that needs sharing between multiprocessing workers
+
+# Dictionaries for units and long names of variables
 variable_units = {'IMERG': 'mm/day',
                   'VOD': 'unitless'}
 
@@ -121,6 +132,47 @@ def mask_to_months(dates, data, month_list=np.arange(12)+1):
 def make_data_array(data_variable, band='Ku', mask_surface_water=False,
                     lon_west=-180, lon_east=180, lat_south=-30, lat_north=30,
                     min_year=2000, max_year=2018, month_list=np.arange(12)+1, percent_readings_required=30.):
+    """
+    Load data for a variable into memory and get time/lon/lat coordinates.
+    Uses read_data_all_years() from read_data_iris module.
+    See read_data_iris documentation for list of supported variables.
+    Parameters
+    ----------
+    data_variable: str
+        Label for data to be loaded, e.g. 'IMERG', 'VOD'
+    band (kwarg): str
+        Frequency band for VOD observations. Default 'Ku'. Ignored if data_variable is not 'VOD'.
+    mask_surface_water (kwarg): bool
+        Mask periods of VOD data where retrivals are affected by transient inundation events.
+        Default False. Ignored if data_variable is not 'VOD'.
+    lon_west (kwarg): int or float
+        Longitude of western boundary of area to load (in degrees east). Default -180.
+    lon_east (kwarg): int or float
+        Longitude of eastern boundary of area to load (in degrees east). Default 180.
+    lat_south (kwarg): int or float
+        Latitude of southern boundary of area to load (in degrees north). Default -30.
+    lat_north (kwarg): int or float
+        Latitude of northern boundary of area to load (in degrees north). Default 30.
+    min_year (kwarg): int
+        First year for which to load data. Default 2000.
+    max_year (kwarg): int
+        First year for which to load data. Default 2018.
+    month_list (kwarg): list or numpy array (1D) of ints.
+        Months to include in data, e.g. [3, 4, 5] for MAM. Default all months.
+    percent_readings_required (kwarg): float
+        Pixels with fewer than this percentage of valid observations between [min_year, max_year]
+        will have all data masked. Default 30.
+    Returns
+    -------
+    dates: numpy array (1D, float)
+        Dates corresponding to observations. Units are days since 1970-01-01.
+    data_array_mask_season: numpy array (3D, float)
+        Time/lon/lat array of data, cropped to specific years and area from kwargs
+    lats: numpy array (1D, float)
+        Latitudes of pixel centres (degrees north)
+    lons: numpy array (1D, float)
+        Longitudes of pixel centres (degrees east)
+    """
     regridded = (data_variable == 'IMERG')
     data = read_data_all_years(data_variable, band=band, regridded=regridded, mask_surface_water=mask_surface_water,
                                min_year=min_year, max_year=max_year,
@@ -143,6 +195,67 @@ def make_data_arrays(reference_variable, response_variable, band='Ku', mask_surf
                      min_year=2002, max_year=2016, return_coords=False,
                      monthly_anomalies=False, flip_reference_sign=False, flip_response_sign=False,
                      month_list=np.arange(12)+1, percent_readings_required=30.):
+    """
+    Load data for reference and response variables into memory and get time/lon/lat coordinates.
+    Uses read_data_all_years() from read_data_iris module.
+    See read_data_iris documentation for list of supported variables.
+    Includes sign flipping/month masking/date conversion and padding/masking pixels with too few observations,
+    so that output from this function can be fed straight to the cross-spectral analysis.
+    Parameters
+    ----------
+    data_variable: str
+        Label for data to be loaded, e.g. 'IMERG', 'VOD'
+    band (kwarg): str
+        Frequency band for VOD observations. Default 'Ku'. Ignored if data_variable is not 'VOD'.
+    mask_surface_water (kwarg): bool
+        Mask periods of VOD data where retrivals are affected by transient inundation events.
+        Default False. Ignored if data_variable is not 'VOD'.
+    lon_west (kwarg): int or float
+        Longitude of western boundary of area to load (in degrees east). Default -180.
+    lon_east (kwarg): int or float
+        Longitude of eastern boundary of area to load (in degrees east). Default 180.
+    lat_south (kwarg): int or float
+        Latitude of southern boundary of area to load (in degrees north). Default -30.
+    lat_north (kwarg): int or float
+        Latitude of northern boundary of area to load (in degrees north). Default 30.
+    min_year (kwarg): int
+        First year for which to load data. Default 2000.
+    max_year (kwarg): int
+        First year for which to load data. Default 2018.
+    return_coords (kwarg): bool
+        Return arrays of latitude and longitude in addition to dates and data. Default False.
+        Useful for appending results to a single save file.
+    monthly_anomalies (kwarg): bool
+        After loading data, transform to anomalies from monthly climatology. Default False.
+        Applies to both reference and response variables.
+    flip_reference_sign (kwarg): bool
+        Multiply reference variable data by -1. Default False.
+        Useful if working with two variables that are negatively correlated.
+    flip_response_sign (kwarg): bool
+        Multiply reference variable data by -1. Default False.
+        Useful if working with two variables that are negatively correlated.
+    month_list (kwarg): list or numpy array (1D) of ints.
+        Months to include in data, e.g. [3, 4, 5] for MAM. Default all months.
+    percent_readings_required (kwarg): float
+        Pixels with fewer than this percentage of valid observations between [min_year, max_year]
+        will have all data masked. Default 30.
+    Returns
+    -------
+    decimal_dates: numpy array (1D, float)
+        Dates corresponding to observations, expressed as decimal dates (e.g. 1 Jan 2000 = 2000.0).
+        Padded to contain dates for all observations (both reference and response variables).
+    padded_reference: numpy array (3D, float)
+        Time/lon/lat array of data for reference variable, cropped to specific years and area from kwargs
+        and padded to match up with correct observation dates.
+    padded_response: numpy array (3D, float)
+        Time/lon/lat array of data for response variable, cropped to specific years and area from kwargs
+        and padded to match up with correct observation dates.
+    --- The following are returned ONLY IF return_coords is set to True: ---
+    lats: numpy array (1D, float)
+        Latitudes of pixel centres (degrees north)
+    lons: numpy array (1D, float)
+        Longitudes of pixel centres (degrees east)
+    """
     reference_dates, reference_array, lats, lons = make_data_array(reference_variable, band=band,
                                                                    mask_surface_water=mask_surface_water,
                                                                    lon_west=lon_west, lon_east=lon_east, 
@@ -198,6 +311,28 @@ def make_data_arrays(reference_variable, response_variable, band='Ku', mask_surf
 
 def create_input_file(reference_variable, response_variable, dates, reference_data, response_data,
                       save_filename):
+    """
+    Create a netCDF file with the correct time stamps/columns/formatting to be read in 
+    for cross-spectral analysis by csagan.
+    Parameters
+    ----------
+    reference_variable: str
+        Name of reference variable
+    response_variable: str
+        Name of response variable
+    dates: list or numpy array
+        Time stamps of data as decimal dates
+    reference_data: numpy array
+        Data for reference variable
+    response_data: numpy array
+        Data for response variable
+    save_filename: str
+        Path to file for saving data (i.e. path to where CSA input file should be created)
+    Returns
+    -------
+    None
+    """
+    # Only save time steps where both reference and response variable have valid data (required by csagan)
     valid_response_idcs = ~np.isnan(response_data)
     valid_reference_idcs = ~np.isnan(reference_data)
     valid_idcs = np.logical_and(valid_response_idcs, valid_reference_idcs)
@@ -222,33 +357,100 @@ def create_input_file(reference_variable, response_variable, dates, reference_da
     f.close()
 
 
-
 def run_csagan(exe_filename, data_filename, netcdf, time_variable_name, 
                time_format, time_double, obs_variable_name, model_variable_name,
                frequency_units, ray_freq, model_units, time_earliest, pre_whiten, correct_bias):
-                          
-               netcdf = str(netcdf + 1) #convert from False/True to 1/2
-               time_variable_codes = {'continuous': '1', 'integer seconds relative': '2', 'fixed time step': '3'}
-               time_format = time_variable_codes[time_format]
-               frequency_unit_codes = {'year_year': '1', 'day_day': '2', 'year_day': '3', 'hour_hour': '4',
-                                       'minute_minute': '5', 'second_second': 6}
-               frequency_units = frequency_unit_codes[frequency_units]
-               change_ray_freq = 'Y' if ray_freq else 'N'
-               time_double = str(time_double + 1)
-               correct_bias = 'Y' if correct_bias else 'N'
-               time_earliest = 'E' if time_earliest else 'L'
-               pre_whiten = str(int(pre_whiten)) # string 0 or 1
+    """
+    Wrapper for running csagan.f. Includes all input options so that program will not require
+    user interaction at runtime (essential for running over thousands of pixels).
+    Not tested with any combination of input options other than the ones currently set in default_run.
+    Parameters
+    ----------
+    exe_filename: str
+        Path to the compiled csagan executable file
+    data_filename: str
+        Path to file containing input data (in format created by create_input_file function)
+    netcdf: bool
+        Is input in netCDF format? (False means ASCII - not tested)
+    time_variable_name: str
+        Name of variable in input file corresponding to time.
+        Should be 'Time' for files generated using create_input_file.
+    time_format: str
+        Format of time data. Valid options are:
+        'continuous': Date expressed as decimal, e.g. 00:00 1 Jan 2000 is 2000.000
+        'integer seconds relative': Integer seconds relative to the start year
+        'fixed time step': Integer fixed-length time step
+        Only 'continuous' has been tested. Data generated using create_input_file
+        has continuous format for time.
+    time_double: bool
+        Is time data stored as double precision?
+    obs_variable_name: str
+        Name of reference variable
+    model_variable_name: str
+        Name of response variable
+    frequency_units: str
+        Required frequency units to output given the units of the time stamps.
+        e.g. year_day means time stamps are in years and frequency should be in cycles per day.
+        See documentation in csagan.f for all options.
+    ray_freq: bool
+        Whether to change Rayleigh frequency from default (not set up to work for True yet)
+    model_units: str
+        Units of response data
+    time_earliest: bool
+        Is the first timestep in the stored data the earliest (True) or the latest (False)?
+    pre_whiten: bool
+        Pre-whiten data before performing cross-spectral analysis
+    correct_bias: bool
+        Correct bias in the power spectra using Monte Carlo simulations?
+    Returns
+    -------
+    None
+    """                       
+    # Transform all options into the format required by csagan's user input prompts.
+    netcdf = str(netcdf + 1) #convert from False/True to 1/2
+    time_variable_codes = {'continuous': '1', 'integer seconds relative': '2', 'fixed time step': '3'}
+    time_format = time_variable_codes[time_format]
+    frequency_unit_codes = {'year_year': '1', 'day_day': '2', 'year_day': '3', 'hour_hour': '4',
+                            'minute_minute': '5', 'second_second': 6}
+    frequency_units = frequency_unit_codes[frequency_units]
+    change_ray_freq = 'Y' if ray_freq else 'N'
+    time_double = str(time_double + 1)
+    correct_bias = 'Y' if correct_bias else 'N'
+    time_earliest = 'E' if time_earliest else 'L'
+    pre_whiten = str(int(pre_whiten)) # string 0 or 1
 
-               process_id = data_filename.split('-')[-1].split('.')[0]
-
-               csagan_args = os.linesep.join([netcdf, process_id, data_filename, time_variable_name, time_format,
-                                              time_double, obs_variable_name, model_variable_name, frequency_units,
-                                              model_units, time_earliest, change_ray_freq, correct_bias])
-
-               csagan = run(exe_filename, text=True, input=csagan_args, stdout=subprocess.DEVNULL)#, stderr=subprocess.DEVNULL)
+    # Get process ID from input filename - needs to be fed into csagan args so that output file
+    # will have the same process ID in filename.
+    process_id = data_filename.split('-')[-1].split('.')[0]
+    # Put all the arguments to be fed to csagan together
+    csagan_args = os.linesep.join([netcdf, process_id, data_filename, time_variable_name, time_format,
+                                   time_double, obs_variable_name, model_variable_name, frequency_units,
+                                   model_units, time_earliest, change_ray_freq, correct_bias])
+    # Run csagan with set arguments to automatically answer when user input prompted.
+    # Note set not to print or save stdout/stderr, remove these kwargs if output needed for debugging.
+    csagan = run(exe_filename, text=True, input=csagan_args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                    
                    
 def default_run(exe_filename, reference_variable, response_variable, data_filename):
+    """
+    Run cross-spectral analysis on a pre-created input netCDF file, with the csagan options
+    needed for the analysis in Harris et al. 2023.
+    Parameters
+    ----------
+    exe_filename: str
+        Path to compiled csagan executable
+    reference_variable: str
+        Name of reference variable
+    response_variable: str
+        Name of response variable
+    data_filename: str
+        Path to input data file for csagan
+    Returns
+    -------
+    spectra_results: dict
+        Dictionary of arrays of results from cross-spectral analysis
+    """
+    # See documentation for run_csagan() function for more detail on csagan options
     netcdf = True
     time_variable_name = 'Time'
     time_format = 'continuous'
@@ -264,21 +466,66 @@ def default_run(exe_filename, reference_variable, response_variable, data_filena
     run_csagan(exe_filename, data_filename, netcdf, time_variable_name, 
                time_format, time_double, obs_variable_name, model_variable_name,
                frequency_units, ray_freq, model_units, time_earliest, pre_whiten, correct_bias)
+    # get process ID number - the ID in input filename will be automatically used in csagan output file
     process_id = int(data_filename.split('-')[-1].split('.')[0])    
     spectra_results = read_csagan_output(process_id)
     return spectra_results
                    
     
 def delete_csagan_output(process_id, directory='.'):
+    """
+    Delete csagan output files by process ID number.
+    Parameters
+    ----------
+    process_id: int
+        ID of process for which to delete output
+    directory (kwarg, default='.'): str
+        Directory in which csagan results are output
+    Returns
+    -------
+    None
+    """
     os.remove(f'{directory}/csaout-{process_id}.nc')
     os.remove(f'{directory}/csaout-phase95-{process_id}.nc')
 
 
 def delete_csagan_input(process_id, reference_variable, response_variable, directory='.'):
+    """
+    Delete csagan input files by process ID number.
+    Parameters
+    ----------
+    process_id: int
+        ID of process for which to delete output
+    reference_variable: str
+        Name of reference variable
+    response_variable: str
+        Name of response variable
+    directory (kwarg, default='.'): str
+        Directory in which csagan results are output
+    Returns
+    -------
+    None
+    """
     os.remove(f'{directory}/{reference_variable}_{response_variable}_input-{process_id}.nc')
     
 
 def read_csagan_output(process_id, directory='.'):
+    """
+    Read results file generated by csagan.
+    Parameters
+    ----------
+    process_id: int
+        ID of process for which to read output
+    directory (kwarg, default='.'): str
+        Directory in which csagan results are output
+    Returns
+    -------
+    spectra_results: dict
+        Dictionary of arrays of results of cross-spectral analysis.
+        Contains resolution bandwith, period, log power for reference and response variables,
+        coherency, phase difference and its 95% confidence interval bounds, amplitude ratio
+        and its 95% confidence interval bounds
+    """
     spectra_filename = f'{directory}/csaout-{process_id}.nc'
     spectra_results = {}
     with Dataset(spectra_filename, 'r') as spectra_data:
@@ -298,6 +545,32 @@ def read_csagan_output(process_id, directory='.'):
 
 def reference_response_spectra(exe_filename, process_id, reference_variable, response_variable,
                                dates, reference_data, response_data):
+    """
+    Perform cross-spectral analysis on a pixel, given data for two variables
+    Parameters
+    ----------
+    exe_filename: str
+        Path to compiled csagan executable
+    process_id: int
+        Process ID for pixel computation
+    reference_variable: str
+        Name of reference variable
+    response_variable: str
+        Name of response variable
+    dates: numpy array (1D, float)
+        Decimal dates - same dates must be applicable to both reference and response data
+    reference_data: numpy array (1D, float)
+        Pixel data for reference variable
+    response_data: numpy array (1D, float)
+        Pixel data for response variable
+    Returns
+    -------
+    spectra_results: dict
+        Dictionary of arrays of results of cross-spectral analysis.
+        Contains resolution bandwith, period, log power for reference and response variables,
+        coherency, phase difference and its 95% confidence interval bounds, amplitude ratio
+        and its 95% confidence interval bounds
+    """
     output_directory = os.path.dirname(exe_filename)
     if output_directory == '':
         output_directory = '.'
