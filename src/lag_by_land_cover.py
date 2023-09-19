@@ -269,6 +269,59 @@ def subplots(spectra_save_dir, density=False, show_95ci=True, all_lc_line=False)
     plt.show()
 
 
+
+def plot_single_band_distribution(spectra_save_dir, band_days_lower, band_days_upper, density=False, show_95ci=True, all_lc_line=False):
+    fig, ax = plt.subplots(figsize=(6, 4.5))
+    # plt.subplots_adjust(hspace=0.45, wspace=0.4)
+    lc_codes = copernicus_land_cover(lat_south=-55, lat_north=55)
+    lc_colors = {'Bare/sparse vegetation': '#ffd92f',
+                 'Herbaceous vegetation': '#EA8294',
+                 'Shrubland': '#AA4499',
+                 'Cropland': '#88CCEE',
+                 'Open forest': '#889933',
+                 'Closed forest': '#117733'}
+    lag_band = all_season_lags(spectra_save_dir, 'global', band_days_lower, band_days_upper)
+    lag_bins = np.arange(-30, 31, 1)
+    bin_centres = lag_bins[:-1] + (lag_bins[1] - lag_bins[0])/2.
+    for land_cover_code in lc_colors.keys():
+        hist = hist_lc(lag_band, lc_codes, land_cover_code, density=density)
+        ax.plot(bin_centres, hist, '-o', color=lc_colors[land_cover_code], ms=2.5, label=land_cover_code)
+    if all_lc_line:
+        hist = hist_lc(lag_band, lc_codes, 'all', density=density)
+        ax.plot(bin_centres, hist, '--', color='k', ms=0, linewidth=1, label='All')
+    ax.tick_params(labelsize=14)
+    ax.set_xlim([-30, 30])
+    ax.set_xlabel('phase difference (days)', fontsize=16)
+    if density:
+        ax.set_ylabel('pdf', fontsize=16)
+    else:
+        ax.set_ylabel('number of pixels', fontsize=16)
+    if show_95ci:
+        median_lag_error = median_95ci_width(spectra_save_dir, 'global', band_days_lower, band_days_upper)
+        ylims = ax.get_ylim()
+        y_range = ylims[1]-ylims[0]
+        ci_line = Rectangle((27.-2*median_lag_error, ylims[0]+0.925*y_range), 2*median_lag_error, 0.0025*y_range, edgecolor='k', facecolor='k')
+        line_middle = [27.-median_lag_error, ylims[0]+0.92625*y_range]
+        ax.add_artist(ci_line)
+        ax.plot(line_middle[0], line_middle[1], 'k-o', ms=2.5)
+        ax.text(line_middle[0], line_middle[1]-0.075*y_range, '95% CI', fontsize=12, transform=ax.transData, ha='center')
+    endash = u'\u2013'
+    ax.set_title(f'{int(band_days_lower)}{endash}{int(band_days_upper)} days', fontsize=14)
+    ax.axvline(0, color='gray', alpha=0.3, zorder=0)
+    ax.legend(loc='upper left', fontsize=10, framealpha=1)
+    save_filename = f'../figures/land_cover_lag_distribution_global_{int(band_days_lower)}-{int(band_days_upper)}'
+    if density:
+        save_filename += '_density'
+    if show_95ci:
+        save_filename += '_median95ci'
+    if all_lc_line:
+        save_filename += '_showall'
+    plt.savefig(f'{save_filename}.png', dpi=600, bbox_inches='tight')
+    plt.savefig(f'{save_filename}.pdf', dpi=900, bbox_inches='tight')
+    plt.show()
+
+
+
 def plot_global_percent_validity(spectra_save_dir, ax, band_days_lower, band_days_upper):
     land_cover_codes = ['Bare/sparse vegetation','Herbaceous vegetation',
      'Shrubland','Cropland','Open forest', 'Closed forest']
@@ -383,6 +436,6 @@ def median_values(spectra_save_dir, band_days_lower, band_days_upper):
 
 if __name__ == '__main__':
     spectra_save_dir = '/prj/nceo/bethar/cross_spectral_analysis_results/test/'
-    subplots(spectra_save_dir, density=True, show_95ci=True, all_lc_line=True)
-    subplots_percent_validity(spectra_save_dir)
- 
+    # subplots(spectra_save_dir, density=True, show_95ci=True, all_lc_line=True)
+    # subplots_percent_validity(spectra_save_dir)
+    plot_single_band_distribution(spectra_save_dir, 40, 60, density=True, show_95ci=True, all_lc_line=False)
