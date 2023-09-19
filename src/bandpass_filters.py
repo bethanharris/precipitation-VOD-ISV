@@ -48,6 +48,46 @@ def bandpass_filter_missing_data(data, freq_low, freq_high, fs, order=5, min_sli
     return filtered_data
 
 
+def lowpass_filter_missing_data(data, freq_low, fs, order=5, min_slice_size=30):
+    filtered_data = np.ones_like(data)*np.nan
+    missing_data = np.isnan(data)
+    if not np.any(missing_data):
+        return butter_lowpass_filter(data, freq_low, fs)
+    change_missing = np.diff(missing_data.astype(float))
+    start_valid = (np.where(change_missing == -1)[0] + 1).tolist()
+    end_valid = (np.where(change_missing == 1)[0] + 1).tolist()
+    if not missing_data[0]:
+        start_valid.insert(0, 0)
+    if len(end_valid) == len(start_valid) - 1:
+        end_valid.append(None)
+    valid_data_slices = zip(start_valid, end_valid)
+    for start, end in valid_data_slices:
+        slice_size = (data.size - start) if end is None else (end - start)
+        if slice_size > min_slice_size+3:
+            filtered_data[start:end] = butter_lowpass_filter(data[start:end], freq_low, fs)
+    return filtered_data
+
+
+def highpass_filter_missing_data(data, freq_high, fs, order=5, min_slice_size=30):
+    filtered_data = np.ones_like(data)*np.nan
+    missing_data = np.isnan(data)
+    if not np.any(missing_data):
+        return butter_highpass_filter(data, freq_high, fs)
+    change_missing = np.diff(missing_data.astype(float))
+    start_valid = (np.where(change_missing == -1)[0] + 1).tolist()
+    end_valid = (np.where(change_missing == 1)[0] + 1).tolist()
+    if not missing_data[0]:
+        start_valid.insert(0, 0)
+    if len(end_valid) == len(start_valid) - 1:
+        end_valid.append(None)
+    valid_data_slices = zip(start_valid, end_valid)
+    for start, end in valid_data_slices:
+        slice_size = (data.size - start) if end is None else (end - start)
+        if slice_size > min_slice_size+3:
+            filtered_data[start:end] = butter_highpass_filter(data[start:end], freq_high, fs)
+    return filtered_data
+
+
 def lanczos_lowpass_weights(window, cutoff):
     """Calculate weights for a low pass Lanczos filter.
     Args:
